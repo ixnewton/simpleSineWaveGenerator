@@ -1,0 +1,16 @@
+CXX = g++
+CXXFLAGS = `pkg-config --cflags gtk+-3.0` -std=c++11 -pthread
+LDFLAGS = `pkg-config --libs gtk+-3.0` -lpulse -lpulse-simple -lm
+
+SOURCES = gtk_sine_generator.cpp
+TARGET = gtk_sine_generator
+
+all: $(TARGET)
+
+$(TARGET): $(SOURCES)
+	$(CXX) $(CXXFLAGS) $(SOURCES) -o $(TARGET) $(LDFLAGS)
+
+clean:
+	rm -f $(TARGET)
+
+.PHONY: all clean
