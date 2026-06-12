@@ -11,8 +11,7 @@ This is a simple sine wave generator project for Linux using GTK3 for the GUI an
 - **Logarithmic Frequency Sweep**: Generate frequency sweeps with logarithmic spacing
 - **Sweep Direction**: Sweep up (Start → End) or sweep down (End → Start)
 - **Sweep Duration**: Adjustable from 0.1 to 60 seconds (default 5 seconds)
-- **Independent Sweep**: Sweep plays regardless of mute state, stops automatically when complete
-- **Real-time Audio**: Continuous sine wave generation via PulseAudio
+- **Real-time Audio**: Continuous sine wave generation via PulseAudio/PipeWire.
 
 ## Building
 
