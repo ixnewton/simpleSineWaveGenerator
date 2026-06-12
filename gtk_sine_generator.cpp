@@ -34,6 +34,60 @@ struct AudioParams {
 
 AudioParams params;
 
+// Callback to sync phase spin button to slider
+void on_phase_spin_changed(GtkSpinButton* spin, gpointer data) {
+    GtkRange* slider = GTK_RANGE(data);
+    if (GTK_IS_RANGE(slider)) {
+        double value = gtk_spin_button_get_value(spin);
+        gtk_range_set_value(slider, value);
+    }
+}
+
+// Callback to sync phase slider to spin button
+void on_phase_slider_changed(GtkRange* range, gpointer data) {
+    GtkSpinButton* spin = GTK_SPIN_BUTTON(data);
+    if (GTK_IS_SPIN_BUTTON(spin)) {
+        double value = gtk_range_get_value(range);
+        gtk_spin_button_set_value(spin, value);
+    }
+}
+
+// Callback to sync frequency spin button to slider
+void on_freq_spin_changed(GtkSpinButton* spin, gpointer data) {
+    GtkRange* slider = GTK_RANGE(data);
+    if (GTK_IS_RANGE(slider)) {
+        double value = gtk_spin_button_get_value(spin);
+        gtk_range_set_value(slider, value);
+    }
+}
+
+// Callback to sync frequency slider to spin button
+void on_freq_slider_changed(GtkRange* range, gpointer data) {
+    GtkSpinButton* spin = GTK_SPIN_BUTTON(data);
+    if (GTK_IS_SPIN_BUTTON(spin)) {
+        double value = gtk_range_get_value(range);
+        gtk_spin_button_set_value(spin, value);
+    }
+}
+
+// Callback to sync volume spin button to slider
+void on_volume_spin_changed(GtkSpinButton* spin, gpointer data) {
+    GtkRange* slider = GTK_RANGE(data);
+    if (GTK_IS_RANGE(slider)) {
+        double value = gtk_spin_button_get_value(spin);
+        gtk_range_set_value(slider, value);
+    }
+}
+
+// Callback to sync volume slider to spin button
+void on_volume_slider_changed(GtkRange* range, gpointer data) {
+    GtkSpinButton* spin = GTK_SPIN_BUTTON(data);
+    if (GTK_IS_SPIN_BUTTON(spin)) {
+        double value = gtk_range_get_value(range);
+        gtk_spin_button_set_value(spin, value);
+    }
+}
+
 // WAV file writer for debug
 void write_wav_file(const char* filename, const float* buffer, int size, int sample_rate, int channels) {
     std::ofstream file(filename, std::ios::binary);
@@ -242,12 +296,25 @@ void on_volume_changed(GtkRange* range, gpointer data) {
     params.amplitude = pow(10.0, value / 20.0);
 }
 
+void on_volume_spin_value_changed(GtkSpinButton* spin, gpointer data) {
+    double value = gtk_spin_button_get_value(spin);
+    params.amplitude = pow(10.0, value / 20.0);
+}
+
 void on_phase_changed(GtkRange* range, gpointer data) {
     params.phase = gtk_range_get_value(range);
 }
 
+void on_phase_spin_value_changed(GtkSpinButton* spin, gpointer data) {
+    params.phase = gtk_spin_button_get_value(spin);
+}
+
 void on_frequency_changed(GtkRange* range, gpointer data) {
     params.frequency = gtk_range_get_value(range);
+}
+
+void on_frequency_spin_value_changed(GtkSpinButton* spin, gpointer data) {
+    params.frequency = gtk_spin_button_get_value(spin);
 }
 
 void on_play_mute_clicked(GtkButton* button, gpointer data) {
@@ -340,8 +407,20 @@ int main(int argc, char* argv[]) {
     GtkWidget* volume_slider = gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL, -96, 6, 0.1);
     gtk_range_set_value(GTK_RANGE(volume_slider), -20);
     gtk_widget_set_hexpand(volume_slider, TRUE);
+    gtk_scale_set_draw_value(GTK_SCALE(volume_slider), FALSE); // Hide default value display
     g_signal_connect(volume_slider, "value-changed", G_CALLBACK(on_volume_changed), nullptr);
     gtk_box_pack_start(GTK_BOX(volume_box), volume_slider, TRUE, TRUE, 0);
+    
+    // Volume spin button for manual input
+    GtkWidget* volume_spin = gtk_spin_button_new_with_range(-96, 6, 0.1);
+    gtk_spin_button_set_value(GTK_SPIN_BUTTON(volume_spin), -20);
+    gtk_spin_button_set_digits(GTK_SPIN_BUTTON(volume_spin), 1);
+    gtk_entry_set_width_chars(GTK_ENTRY(volume_spin), 6); // Width to fit 22000
+    g_signal_connect(volume_spin, "value-changed", G_CALLBACK(on_volume_spin_value_changed), nullptr);
+    g_signal_connect(volume_spin, "value-changed", G_CALLBACK(on_volume_spin_changed), volume_slider);
+    g_signal_connect(volume_slider, "value-changed", G_CALLBACK(on_volume_changed), nullptr);
+    g_signal_connect(volume_slider, "value-changed", G_CALLBACK(on_volume_slider_changed), volume_spin);
+    gtk_box_pack_start(GTK_BOX(volume_box), volume_spin, FALSE, FALSE, 0);
     
     // Phase slider
     GtkWidget* phase_box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 5);
@@ -353,8 +432,20 @@ int main(int argc, char* argv[]) {
     GtkWidget* phase_slider = gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL, 0, 1, 0.01);
     gtk_range_set_value(GTK_RANGE(phase_slider), 0);
     gtk_widget_set_hexpand(phase_slider, TRUE);
+    gtk_scale_set_draw_value(GTK_SCALE(phase_slider), FALSE); // Hide default value display
     g_signal_connect(phase_slider, "value-changed", G_CALLBACK(on_phase_changed), nullptr);
     gtk_box_pack_start(GTK_BOX(phase_box), phase_slider, TRUE, TRUE, 0);
+    
+    // Phase spin button for manual input
+    GtkWidget* phase_spin = gtk_spin_button_new_with_range(0, 1, 0.01);
+    gtk_spin_button_set_value(GTK_SPIN_BUTTON(phase_spin), 0);
+    gtk_spin_button_set_digits(GTK_SPIN_BUTTON(phase_spin), 2);
+    gtk_entry_set_width_chars(GTK_ENTRY(phase_spin), 6); // Same width to fit 22000
+    g_signal_connect(phase_spin, "value-changed", G_CALLBACK(on_phase_spin_value_changed), nullptr);
+    g_signal_connect(phase_spin, "value-changed", G_CALLBACK(on_phase_spin_changed), phase_slider);
+    g_signal_connect(phase_slider, "value-changed", G_CALLBACK(on_phase_changed), nullptr);
+    g_signal_connect(phase_slider, "value-changed", G_CALLBACK(on_phase_slider_changed), phase_spin);
+    gtk_box_pack_start(GTK_BOX(phase_box), phase_spin, FALSE, FALSE, 0);
     
     // Frequency slider
     GtkWidget* freq_box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 5);
@@ -366,8 +457,19 @@ int main(int argc, char* argv[]) {
     GtkWidget* freq_slider = gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL, 10, 22000, 1);
     gtk_range_set_value(GTK_RANGE(freq_slider), 500);
     gtk_widget_set_hexpand(freq_slider, TRUE);
+    gtk_scale_set_draw_value(GTK_SCALE(freq_slider), FALSE); // Hide default value display
     g_signal_connect(freq_slider, "value-changed", G_CALLBACK(on_frequency_changed), nullptr);
     gtk_box_pack_start(GTK_BOX(freq_box), freq_slider, TRUE, TRUE, 0);
+    
+    // Frequency spin button for manual input
+    GtkWidget* freq_spin = gtk_spin_button_new_with_range(10, 22000, 1);
+    gtk_spin_button_set_value(GTK_SPIN_BUTTON(freq_spin), 500);
+    gtk_entry_set_width_chars(GTK_ENTRY(freq_spin), 6); // Same width to fit 22000
+    g_signal_connect(freq_spin, "value-changed", G_CALLBACK(on_frequency_spin_value_changed), nullptr);
+    g_signal_connect(freq_spin, "value-changed", G_CALLBACK(on_freq_spin_changed), freq_slider);
+    g_signal_connect(freq_slider, "value-changed", G_CALLBACK(on_frequency_changed), nullptr);
+    g_signal_connect(freq_slider, "value-changed", G_CALLBACK(on_freq_slider_changed), freq_spin);
+    gtk_box_pack_start(GTK_BOX(freq_box), freq_spin, FALSE, FALSE, 0);
     
     // Store frequency slider reference for sweep updates
     params.freq_slider = freq_slider;
@@ -428,16 +530,33 @@ int main(int argc, char* argv[]) {
     GtkWidget* sweep_button_box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 5);
     gtk_box_pack_start(GTK_BOX(vbox), sweep_button_box, FALSE, FALSE, 0);
     
-    // Sweep down button
-    GtkWidget* sweep_down_button = gtk_button_new_with_label("Sweep <-");
+    // Sweep down button with icon
+    GtkWidget* sweep_down_button = gtk_button_new();
+    GtkWidget* sweep_down_box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 5);
+    gtk_box_set_homogeneous(GTK_BOX(sweep_down_box), TRUE);
+    gtk_container_add(GTK_CONTAINER(sweep_down_button), sweep_down_box);
+    
+    GtkWidget* down_label = gtk_label_new("Sweep");
+    gtk_box_pack_start(GTK_BOX(sweep_down_box), down_label, FALSE, FALSE, 0);
+    GtkWidget* down_icon = gtk_image_new_from_icon_name("go-down", GTK_ICON_SIZE_BUTTON);
+    gtk_box_pack_start(GTK_BOX(sweep_down_box), down_icon, FALSE, FALSE, 0);
     
     // Create array of widgets for callback
     GtkWidget* sweep_widgets[3] = {start_freq_spin, end_freq_spin, duration_spin};
     g_signal_connect(sweep_down_button, "clicked", G_CALLBACK(on_sweep_down_clicked), sweep_widgets);
     gtk_box_pack_start(GTK_BOX(sweep_button_box), sweep_down_button, TRUE, TRUE, 0);
     
-    // Sweep up button
-    GtkWidget* sweep_up_button = gtk_button_new_with_label("Sweep ->");
+    // Sweep up button with icon
+    GtkWidget* sweep_up_button = gtk_button_new();
+    GtkWidget* sweep_up_box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 5);
+    gtk_box_set_homogeneous(GTK_BOX(sweep_up_box), TRUE);
+    gtk_container_add(GTK_CONTAINER(sweep_up_button), sweep_up_box);
+    
+    GtkWidget* up_label = gtk_label_new("Sweep");
+    gtk_box_pack_start(GTK_BOX(sweep_up_box), up_label, FALSE, FALSE, 0);
+    GtkWidget* up_icon = gtk_image_new_from_icon_name("go-up", GTK_ICON_SIZE_BUTTON);
+    gtk_box_pack_start(GTK_BOX(sweep_up_box), up_icon, FALSE, FALSE, 0);
+    
     g_signal_connect(sweep_up_button, "clicked", G_CALLBACK(on_sweep_up_clicked), sweep_widgets);
     gtk_box_pack_start(GTK_BOX(sweep_button_box), sweep_up_button, TRUE, TRUE, 0);
     
