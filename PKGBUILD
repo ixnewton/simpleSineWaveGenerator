@@ -4,12 +4,12 @@ pkgver=v0.0.3.r3.g417fdac
 pkgrel=1
 pkgdesc="Simple sine wave generator with GTK3 GUI and logarithmic frequency sweep"
 arch=('x86_64')
-url="https://github.com/olehxch/simpleSineWaveGenerator"
+url="https://github.com/ixnewton/simpleSineWaveGenerator"
 license=('MIT')
 depends=('gtk3')
 makedepends=('gcc' 'pkg-config' 'git' 'libpulse')
 optdepends=('pulseaudio: PulseAudio backend (or pipewire-pulse)')
-source=("git+https://github.com/olehxch/simpleSineWaveGenerator.git#branch=Sweep-Generator-aur")
+source=("git+https://github.com/ixnewton/simpleSineWaveGenerator.git#branch=Sweep-Generator-aur")
 sha256sums=('SKIP')
 
 pkgver() {
