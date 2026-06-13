@@ -393,11 +393,21 @@ int main(int argc, char* argv[]) {
     gtk_container_set_border_width(GTK_CONTAINER(window), 10);
     g_signal_connect(window, "destroy", G_CALLBACK(on_destroy), nullptr);
     
-    // Set window icon
-    GdkPixbuf* icon = gdk_pixbuf_new_from_file("simplesinewavegenerator.svg", nullptr);
-    if (icon) {
-        gtk_window_set_icon(GTK_WINDOW(window), icon);
-        g_object_unref(icon);
+    // Set window icon (try system icon directory first, then local directory)
+    const char* icon_paths[] = {
+        "/usr/share/icons/hicolor/scalable/apps/simplesinewavegenerator.svg",
+        "simplesinewavegenerator.svg",
+        nullptr
+    };
+    
+    GdkPixbuf* icon = nullptr;
+    for (int i = 0; icon_paths[i] != nullptr; i++) {
+        icon = gdk_pixbuf_new_from_file(icon_paths[i], nullptr);
+        if (icon) {
+            gtk_window_set_icon(GTK_WINDOW(window), icon);
+            g_object_unref(icon);
+            break;
+        }
     }
     
     // Create vertical box
