@@ -22,14 +22,17 @@ struct AudioParams {
     int sweep_buffer_position;
     bool sweep_playing;
     bool sweep_just_completed;
+    float sweep_current_freq;  // Current frequency during sweep
     
     // GUI widget reference for updating frequency slider
     GtkWidget* freq_slider;
     GtkWidget* play_mute_button;
+    GtkWidget* waveform_drawing;
     
     AudioParams() : amplitude(0.1f), frequency(500.0f), phase(0.0f), muted(true), running(true),
                     sweep_buffer(nullptr), sweep_buffer_size(0), sweep_buffer_position(0), 
-                    sweep_playing(false), sweep_just_completed(false), freq_slider(nullptr), play_mute_button(nullptr) {}
+                    sweep_playing(false), sweep_just_completed(false), sweep_current_freq(500.0f),
+                    freq_slider(nullptr), play_mute_button(nullptr), waveform_drawing(nullptr) {}
 };
 
 AudioParams params;
@@ -217,6 +220,14 @@ void* audio_thread_func(void* arg) {
                     samples_to_copy = (p->sweep_buffer_size - p->sweep_buffer_position) / 2;
                 }
                 
+                // Calculate current frequency for visualization
+                // The sweep buffer was generated with logarithmic frequency progression
+                // We can estimate current frequency based on buffer position
+                float progress = (float)p->sweep_buffer_position / p->sweep_buffer_size;
+                // This is a simplified estimate - actual frequency depends on sweep parameters
+                // For visualization, we'll use a range that roughly matches typical sweeps
+                p->sweep_current_freq = 100.0 + progress * 1000.0; // Linear estimate for display
+                
                 // Copy samples from sweep buffer
                 for (int i = 0; i < samples_to_copy; i++) {
                     buffer[i * 2] = p->sweep_buffer[p->sweep_buffer_position + i * 2];
@@ -294,27 +305,45 @@ void* audio_thread_func(void* arg) {
 void on_volume_changed(GtkRange* range, gpointer data) {
     double value = gtk_range_get_value(range);
     params.amplitude = pow(10.0, value / 20.0);
+    if (params.waveform_drawing) {
+        gtk_widget_queue_draw(params.waveform_drawing);
+    }
 }
 
 void on_volume_spin_value_changed(GtkSpinButton* spin, gpointer data) {
     double value = gtk_spin_button_get_value(spin);
     params.amplitude = pow(10.0, value / 20.0);
+    if (params.waveform_drawing) {
+        gtk_widget_queue_draw(params.waveform_drawing);
+    }
 }
 
 void on_phase_changed(GtkRange* range, gpointer data) {
     params.phase = gtk_range_get_value(range);
+    if (params.waveform_drawing) {
+        gtk_widget_queue_draw(params.waveform_drawing);
+    }
 }
 
 void on_phase_spin_value_changed(GtkSpinButton* spin, gpointer data) {
     params.phase = gtk_spin_button_get_value(spin);
+    if (params.waveform_drawing) {
+        gtk_widget_queue_draw(params.waveform_drawing);
+    }
 }
 
 void on_frequency_changed(GtkRange* range, gpointer data) {
     params.frequency = gtk_range_get_value(range);
+    if (params.waveform_drawing) {
+        gtk_widget_queue_draw(params.waveform_drawing);
+    }
 }
 
 void on_frequency_spin_value_changed(GtkSpinButton* spin, gpointer data) {
     params.frequency = gtk_spin_button_get_value(spin);
+    if (params.waveform_drawing) {
+        gtk_widget_queue_draw(params.waveform_drawing);
+    }
 }
 
 void on_play_mute_clicked(GtkButton* button, gpointer data) {
@@ -326,6 +355,15 @@ void on_play_mute_clicked(GtkButton* button, gpointer data) {
     } else {
         gtk_button_set_label(button, "Mute");
     }
+}
+
+// Timer callback to refresh waveform during sweep
+gboolean on_waveform_timer(gpointer data) {
+    if (params.sweep_playing && params.waveform_drawing) {
+        gtk_widget_queue_draw(params.waveform_drawing);
+        return G_SOURCE_CONTINUE; // Keep timer running
+    }
+    return G_SOURCE_REMOVE; // Stop timer when sweep ends
 }
 
 void on_sweep_up_clicked(GtkButton* button, gpointer data) {
@@ -342,6 +380,9 @@ void on_sweep_up_clicked(GtkButton* button, gpointer data) {
     // Start playing sweep
     params.sweep_playing = true;
     params.sweep_buffer_position = 0;
+    
+    // Start waveform refresh timer (50ms = 20fps)
+    g_timeout_add(50, on_waveform_timer, nullptr);
 }
 
 void on_sweep_down_clicked(GtkButton* button, gpointer data) {
@@ -358,6 +399,82 @@ void on_sweep_down_clicked(GtkButton* button, gpointer data) {
     // Start playing sweep
     params.sweep_playing = true;
     params.sweep_buffer_position = 0;
+    
+    // Start waveform refresh timer (50ms = 20fps)
+    g_timeout_add(50, on_waveform_timer, nullptr);
+}
+
+// Waveform drawing callback
+gboolean on_draw_waveform(GtkWidget* widget, cairo_t* cr, gpointer data) {
+    GtkAllocation allocation;
+    gtk_widget_get_allocation(widget, &allocation);
+    
+    int width = allocation.width;
+    int height = allocation.height;
+    
+    // Clear background
+    cairo_set_source_rgb(cr, 0.95, 0.95, 0.95);
+    cairo_paint(cr);
+    
+    // Draw grid
+    cairo_set_source_rgb(cr, 0.9, 0.9, 0.9);
+    cairo_set_line_width(cr, 1.0);
+    
+    // Horizontal center line
+    cairo_move_to(cr, 0, height / 2.0);
+    cairo_line_to(cr, width, height / 2.0);
+    cairo_stroke(cr);
+    
+    // Draw sine wave
+    cairo_set_source_rgb(cr, 0.2, 0.4, 0.8);
+    cairo_set_line_width(cr, 2.0);
+    
+    // Calculate wave parameters for display
+    // Time scale is set to 1 wavelength at lowest frequency (10 Hz)
+    // Changes logarithmically with increased frequency
+    float display_freq;
+    if (params.sweep_playing) {
+        display_freq = params.sweep_current_freq;
+    } else {
+        display_freq = params.frequency;
+    }
+    if (display_freq < 10) display_freq = 10;
+    if (display_freq > 22000) display_freq = 22000;
+    
+    // Use logarithmic scaling for time scale
+    // At 10 Hz: 2 cycles (2 * log10(10) = 2)
+    // At 100 Hz: 4 cycles (2 * log10(100) = 4)
+    // At 1000 Hz: 6 cycles (2 * log10(1000) = 6)
+    // At 10000 Hz: 8 cycles (2 * log10(10000) = 8)
+    float cycles = 2.0 * log10(display_freq);
+    
+    // Use logarithmic amplitude scale for display
+    // Convert linear amplitude to dB for visualization
+    float amplitude_db = 20.0 * log10(params.amplitude);
+    
+    // Map dB range (-96 to +6) to display height (0 to 80%)
+    // Normalize: amplitude_db ranges from -96 to +6 (total 102 dB range)
+    float normalized_amplitude = (amplitude_db + 96.0) / 102.0;
+    if (normalized_amplitude < 0) normalized_amplitude = 0;
+    if (normalized_amplitude > 1) normalized_amplitude = 1;
+    
+    // Apply logarithmic scaling for visual representation
+    // This makes small amplitudes more visible
+    float log_amplitude = pow(normalized_amplitude, 0.5);
+    
+    float amplitude_scale = (height / 2.0) * 0.8 * log_amplitude;
+    
+    cairo_move_to(cr, 0, height / 2.0);
+    
+    for (int x = 0; x < width; x++) {
+        float t = (float)x / width * cycles * 2.0 * M_PI;
+        float y = height / 2.0 - sin(t + params.phase * 2.0 * M_PI) * amplitude_scale;
+        cairo_line_to(cr, x, y);
+    }
+    
+    cairo_stroke(cr);
+    
+    return FALSE;
 }
 
 void on_destroy(GtkWidget* widget, gpointer data) {
@@ -576,6 +693,20 @@ int main(int argc, char* argv[]) {
     
     g_signal_connect(sweep_up_button, "clicked", G_CALLBACK(on_sweep_up_clicked), sweep_widgets);
     gtk_box_pack_start(GTK_BOX(sweep_button_box), sweep_up_button, TRUE, TRUE, 0);
+    
+    // Waveform display area
+    GtkWidget* waveform_frame = gtk_frame_new("Waveform");
+    gtk_box_pack_start(GTK_BOX(vbox), waveform_frame, TRUE, TRUE, 5);
+    
+    GtkWidget* waveform_drawing = gtk_drawing_area_new();
+    gtk_widget_set_size_request(waveform_drawing, -1, 150);
+    gtk_container_add(GTK_CONTAINER(waveform_frame), waveform_drawing);
+    
+    // Store drawing area reference
+    params.waveform_drawing = waveform_drawing;
+    
+    // Connect draw signal
+    g_signal_connect(waveform_drawing, "draw", G_CALLBACK(on_draw_waveform), nullptr);
     
     // Start audio thread
     pthread_create(&params.audio_thread, nullptr, audio_thread_func, &params);
