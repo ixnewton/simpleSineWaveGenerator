@@ -13,7 +13,27 @@ This is a simple sine wave generator project for Linux using GTK3 for the GUI an
 - **Sweep Duration**: Adjustable from 0.1 to 60 seconds (default 5 seconds)
 - **Real-time Audio**: Continuous sine wave generation via PulseAudio/PipeWire.
 
-## Building
+## Installation
+
+### Arch Linux (AUR)
+
+Install from the Arch User Repository using an AUR helper:
+
+```bash
+yay -S simplesinewavegenerator-git
+# or
+paru -S simplesinewavegenerator-git
+```
+
+Or manually build from the AUR:
+
+```bash
+git clone https://aur.archlinux.org/simplesinewavegenerator-git.git
+cd simplesinewavegenerator-git
+makepkg -si
+```
+
+### Building from Source
 
 ### Dependencies
 
@@ -39,8 +59,16 @@ make -f Makefile.gtk
 
 ## Running
 
+After installation from AUR:
+
 ```bash
-./gtk_sine_generator
+simpleSineWaveGenerator
+```
+
+When building from source:
+
+```bash
+./simpleSineWaveGenerator
 ```
 
 ## Usage
