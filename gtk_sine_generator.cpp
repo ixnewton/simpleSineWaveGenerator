@@ -28,14 +28,45 @@ struct AudioParams {
     GtkWidget* freq_slider;
     GtkWidget* play_mute_button;
     GtkWidget* waveform_drawing;
+    GtkWidget* waveform_info_label;
     
     AudioParams() : amplitude(0.1f), frequency(500.0f), phase(0.0f), muted(true), running(true),
                     sweep_buffer(nullptr), sweep_buffer_size(0), sweep_buffer_position(0), 
                     sweep_playing(false), sweep_just_completed(false), sweep_current_freq(500.0f),
-                    freq_slider(nullptr), play_mute_button(nullptr), waveform_drawing(nullptr) {}
+                    freq_slider(nullptr), play_mute_button(nullptr), waveform_drawing(nullptr), waveform_info_label(nullptr) {}
 };
 
 AudioParams params;
+
+// Update frequency and wavelength info label
+void update_waveform_info() {
+    if (!params.waveform_info_label) return;
+    
+    float freq;
+    if (params.sweep_playing) {
+        freq = params.sweep_current_freq;
+    } else {
+        freq = params.frequency;
+    }
+    
+    // Calculate wavelength based on speed of sound (330 m/s)
+    float wavelength_m = 330.0 / freq;
+    
+    // Format wavelength in human-readable units
+    char wavelength_str[32];
+    if (wavelength_m >= 1.0) {
+        snprintf(wavelength_str, sizeof(wavelength_str), "%.2f m", wavelength_m);
+    } else if (wavelength_m >= 0.01) {
+        snprintf(wavelength_str, sizeof(wavelength_str), "%.2f cm", wavelength_m * 100.0);
+    } else {
+        snprintf(wavelength_str, sizeof(wavelength_str), "%.2f mm", wavelength_m * 1000.0);
+    }
+    
+    // Update label
+    char info_str[64];
+    snprintf(info_str, sizeof(info_str), "Waveform: %.1f Hz | λ = %s", freq, wavelength_str);
+    gtk_label_set_text(GTK_LABEL(params.waveform_info_label), info_str);
+}
 
 // Callback to sync phase spin button to slider
 void on_phase_spin_changed(GtkSpinButton* spin, gpointer data) {
@@ -334,6 +365,7 @@ void on_phase_spin_value_changed(GtkSpinButton* spin, gpointer data) {
 
 void on_frequency_changed(GtkRange* range, gpointer data) {
     params.frequency = gtk_range_get_value(range);
+    update_waveform_info();
     if (params.waveform_drawing) {
         gtk_widget_queue_draw(params.waveform_drawing);
     }
@@ -341,6 +373,7 @@ void on_frequency_changed(GtkRange* range, gpointer data) {
 
 void on_frequency_spin_value_changed(GtkSpinButton* spin, gpointer data) {
     params.frequency = gtk_spin_button_get_value(spin);
+    update_waveform_info();
     if (params.waveform_drawing) {
         gtk_widget_queue_draw(params.waveform_drawing);
     }
@@ -360,6 +393,7 @@ void on_play_mute_clicked(GtkButton* button, gpointer data) {
 // Timer callback to refresh waveform during sweep
 gboolean on_waveform_timer(gpointer data) {
     if (params.sweep_playing && params.waveform_drawing) {
+        update_waveform_info();
         gtk_widget_queue_draw(params.waveform_drawing);
         return G_SOURCE_CONTINUE; // Keep timer running
     }
@@ -413,7 +447,7 @@ gboolean on_draw_waveform(GtkWidget* widget, cairo_t* cr, gpointer data) {
     int height = allocation.height;
     
     // Clear background
-    cairo_set_source_rgb(cr, 0.95, 0.95, 0.95);
+    cairo_set_source_rgb(cr, 1.0, 1.0, 1.0);
     cairo_paint(cr);
     
     // Draw grid
@@ -695,18 +729,36 @@ int main(int argc, char* argv[]) {
     gtk_box_pack_start(GTK_BOX(sweep_button_box), sweep_up_button, TRUE, TRUE, 0);
     
     // Waveform display area
-    GtkWidget* waveform_frame = gtk_frame_new("Waveform");
+    GtkWidget* waveform_frame = gtk_frame_new(NULL);
     gtk_box_pack_start(GTK_BOX(vbox), waveform_frame, TRUE, TRUE, 5);
+    
+    // Frequency and wavelength info label
+    GtkWidget* waveform_info_box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 2);
+    gtk_container_add(GTK_CONTAINER(waveform_frame), waveform_info_box);
+    
+    GtkWidget* waveform_info_label = gtk_label_new("");
+    gtk_widget_set_margin_start(waveform_info_label, 6);
+    gtk_widget_set_margin_end(waveform_info_label, 2);
+    gtk_widget_set_margin_top(waveform_info_label, 2);
+    gtk_widget_set_margin_bottom(waveform_info_label, 2);
+    gtk_label_set_xalign(GTK_LABEL(waveform_info_label), 0.0); // Left justify
+    gtk_box_pack_start(GTK_BOX(waveform_info_box), waveform_info_label, FALSE, FALSE, 0);
+    
+    // Store label reference
+    params.waveform_info_label = waveform_info_label;
     
     GtkWidget* waveform_drawing = gtk_drawing_area_new();
     gtk_widget_set_size_request(waveform_drawing, -1, 150);
-    gtk_container_add(GTK_CONTAINER(waveform_frame), waveform_drawing);
+    gtk_box_pack_start(GTK_BOX(waveform_info_box), waveform_drawing, TRUE, TRUE, 0);
     
     // Store drawing area reference
     params.waveform_drawing = waveform_drawing;
     
     // Connect draw signal
     g_signal_connect(waveform_drawing, "draw", G_CALLBACK(on_draw_waveform), nullptr);
+    
+    // Initialize frequency/wavelength info
+    update_waveform_info();
     
     // Start audio thread
     pthread_create(&params.audio_thread, nullptr, audio_thread_func, &params);
