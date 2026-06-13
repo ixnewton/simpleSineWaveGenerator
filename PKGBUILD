@@ -26,7 +26,7 @@ package() {
   cd "$srcdir/simpleSineWaveGenerator"
   
   # Install binary
-  install -Dm755 gtk_sine_generator "$pkgdir/usr/bin/gtk_sine_generator"
+  install -Dm755 simpleSineWaveGenerator "$pkgdir/usr/bin/simpleSineWaveGenerator"
   
   # Install license
   install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
