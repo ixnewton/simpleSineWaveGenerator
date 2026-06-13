@@ -1,5 +1,5 @@
-# Maintainer: Oleh <oleh@example.com>
-pkgname=gtk-sine-generator-git
+# Maintainer: CxOrg <clx.org@cloud-org.uk>
+pkgname=simpleSineWaveGenerator-git
 pkgver=df3fbb3
 pkgrel=1
 pkgdesc="Simple sine wave generator with GTK3 GUI and logarithmic frequency sweep"
