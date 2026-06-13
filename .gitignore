@@ -1,5 +1,5 @@
 # Compiled binary
-gtk_sine_generator
+simpleSineWaveGenerator
 
 # Generated WAV files
 *.wav
