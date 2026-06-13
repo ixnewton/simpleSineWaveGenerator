@@ -1,6 +1,10 @@
 # Compiled binary
 simpleSineWaveGenerator
 
+# Icon and desktop files (these are installed by package)
+# simplesinewavegenerator.svg
+# simplesinewavegenerator.desktop
+
 # Generated WAV files
 *.wav
 

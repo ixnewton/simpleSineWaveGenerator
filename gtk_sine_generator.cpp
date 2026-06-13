@@ -393,6 +393,13 @@ int main(int argc, char* argv[]) {
     gtk_container_set_border_width(GTK_CONTAINER(window), 10);
     g_signal_connect(window, "destroy", G_CALLBACK(on_destroy), nullptr);
     
+    // Set window icon
+    GdkPixbuf* icon = gdk_pixbuf_new_from_file("simplesinewavegenerator.svg", nullptr);
+    if (icon) {
+        gtk_window_set_icon(GTK_WINDOW(window), icon);
+        g_object_unref(icon);
+    }
+    
     // Create vertical box
     GtkWidget* vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 5);
     gtk_container_add(GTK_CONTAINER(window), vbox);
