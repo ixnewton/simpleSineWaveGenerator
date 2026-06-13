@@ -9,7 +9,7 @@ license=('MIT')
 depends=('gtk3')
 makedepends=('gcc' 'pkg-config' 'git' 'libpulse')
 optdepends=('pulseaudio: PulseAudio backend (or pipewire-pulse)')
-source=("git+https://github.com/olehxch/simpleSineWaveGenerator.git")
+source=("git+https://github.com/olehxch/simpleSineWaveGenerator.git#branch=Sweep-Generator-aur")
 sha256sums=('SKIP')
 
 pkgver() {
