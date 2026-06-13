@@ -38,6 +38,7 @@ src/
 *.swo
 .vscode/
 .idea/
+*.code-workspace
 
 # OS files
 .DS_Store
