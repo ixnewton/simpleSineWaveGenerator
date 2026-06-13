@@ -16,6 +16,9 @@ struct AudioParams {
     std::atomic<bool> running;
     pthread_t audio_thread;
     
+    // Waveform type: 0 = sine, 1 = square
+    int waveform_type;
+    
     // Sweep buffer
     float* sweep_buffer;
     int sweep_buffer_size;
@@ -26,14 +29,16 @@ struct AudioParams {
     
     // GUI widget reference for updating frequency slider
     GtkWidget* freq_slider;
-    GtkWidget* play_mute_button;
+    GtkWidget* sine_button;
+    GtkWidget* square_button;
     GtkWidget* waveform_drawing;
     GtkWidget* waveform_info_label;
     
     AudioParams() : amplitude(0.1f), frequency(500.0f), phase(0.0f), muted(true), running(true),
+                    waveform_type(0), // Default to sine wave
                     sweep_buffer(nullptr), sweep_buffer_size(0), sweep_buffer_position(0), 
                     sweep_playing(false), sweep_just_completed(false), sweep_current_freq(500.0f),
-                    freq_slider(nullptr), play_mute_button(nullptr), waveform_drawing(nullptr), waveform_info_label(nullptr) {}
+                    freq_slider(nullptr), sine_button(nullptr), square_button(nullptr), waveform_drawing(nullptr), waveform_info_label(nullptr) {}
 };
 
 AudioParams params;
@@ -64,7 +69,8 @@ void update_waveform_info() {
     
     // Update label
     char info_str[64];
-    snprintf(info_str, sizeof(info_str), "Waveform: %.1f Hz | λ = %s", freq, wavelength_str);
+    const char* waveform_name = (params.waveform_type == 1) ? "Square" : "Sine";
+    snprintf(info_str, sizeof(info_str), "%s Wave: %.1f Hz | λ = %s", waveform_name, freq, wavelength_str);
     gtk_label_set_text(GTK_LABEL(params.waveform_info_label), info_str);
 }
 
@@ -193,8 +199,15 @@ void generate_sweep_buffer(float start_freq, float end_freq, float duration, boo
         double ratio = end_freq / start_freq;
         current_freq = start_freq * pow(ratio, progress);
         
-        // Generate sine sample with phase accumulation for smooth frequency transitions
-        float sample = params.amplitude * sin(phase);
+        // Generate sample based on waveform type
+        float sample;
+        if (params.waveform_type == 1) {
+            // Square wave
+            sample = (sin(phase) >= 0) ? params.amplitude : -params.amplitude;
+        } else {
+            // Sine wave (default)
+            sample = params.amplitude * sin(phase);
+        }
         phase += 2.0 * M_PI * current_freq * dt;
         
         // Store in stereo buffer
@@ -274,11 +287,14 @@ void* audio_thread_func(void* arg) {
                     p->sweep_just_completed = true;
                     p->muted = true;
                     
-                    // Update GUI button to show "Play"
-                    if (p->play_mute_button != nullptr) {
+                    // Reset button labels after sweep completes
+                    if (p->sine_button != nullptr && p->square_button != nullptr) {
                         g_idle_add([](gpointer data) -> gboolean {
                             AudioParams* p = (AudioParams*)data;
-                            gtk_button_set_label(GTK_BUTTON(p->play_mute_button), "Play");
+                            gtk_button_set_label(GTK_BUTTON(p->sine_button), "Play Sine Wave");
+                            gtk_button_set_label(GTK_BUTTON(p->square_button), "Play Square Wave");
+                            gtk_widget_set_sensitive(GTK_WIDGET(p->sine_button), TRUE);
+                            gtk_widget_set_sensitive(GTK_WIDGET(p->square_button), TRUE);
                             return G_SOURCE_REMOVE;
                         }, p);
                     }
@@ -290,12 +306,19 @@ void* audio_thread_func(void* arg) {
                     buffer[i * 2 + 1] = 0.0f;
                 }
             } else if (!p->muted) {
-                // Generate continuous sine wave at current frequency (only when not muted)
+                // Generate continuous wave at current frequency (only when not muted)
                 static double time = 0.0;
                 const double dt = 1.0 / 44100.0;
                 
                 for (int i = 0; i < buffer_size; i++) {
-                    float sample = p->amplitude * sin(2.0 * M_PI * p->frequency * time + p->phase);
+                    float sample;
+                    if (p->waveform_type == 1) {
+                        // Square wave
+                        sample = (sin(2.0 * M_PI * p->frequency * time + p->phase) >= 0) ? p->amplitude : -p->amplitude;
+                    } else {
+                        // Sine wave (default)
+                        sample = p->amplitude * sin(2.0 * M_PI * p->frequency * time + p->phase);
+                    }
                     buffer[i * 2] = sample;     // left channel
                     buffer[i * 2 + 1] = sample; // right channel
                     time += dt;
@@ -379,14 +402,43 @@ void on_frequency_spin_value_changed(GtkSpinButton* spin, gpointer data) {
     }
 }
 
-void on_play_mute_clicked(GtkButton* button, gpointer data) {
-    params.muted = !params.muted;
-    
-    // Update button text based on new state
-    if (params.muted) {
-        gtk_button_set_label(button, "Play");
+void on_sine_button_clicked(GtkButton* button, gpointer data) {
+    if (params.waveform_type == 0 && !params.muted) {
+        // Already playing sine wave, mute it
+        params.muted = true;
+        gtk_button_set_label(GTK_BUTTON(params.sine_button), "Play Sine Wave");
     } else {
-        gtk_button_set_label(button, "Mute");
+        // Select sine wave and play
+        params.waveform_type = 0; // Sine wave
+        params.muted = false;
+        gtk_button_set_label(GTK_BUTTON(params.sine_button), "Mute Sine Wave");
+        gtk_button_set_label(GTK_BUTTON(params.square_button), "Play Square Wave");
+    }
+    
+    // Update waveform display
+    update_waveform_info();
+    if (params.waveform_drawing) {
+        gtk_widget_queue_draw(params.waveform_drawing);
+    }
+}
+
+void on_square_button_clicked(GtkButton* button, gpointer data) {
+    if (params.waveform_type == 1 && !params.muted) {
+        // Already playing square wave, mute it
+        params.muted = true;
+        gtk_button_set_label(GTK_BUTTON(params.square_button), "Play Square Wave");
+    } else {
+        // Select square wave and play
+        params.waveform_type = 1; // Square wave
+        params.muted = false;
+        gtk_button_set_label(GTK_BUTTON(params.square_button), "Mute Square Wave");
+        gtk_button_set_label(GTK_BUTTON(params.sine_button), "Play Sine Wave");
+    }
+    
+    // Update waveform display
+    update_waveform_info();
+    if (params.waveform_drawing) {
+        gtk_widget_queue_draw(params.waveform_drawing);
     }
 }
 
@@ -502,7 +554,14 @@ gboolean on_draw_waveform(GtkWidget* widget, cairo_t* cr, gpointer data) {
     
     for (int x = 0; x < width; x++) {
         float t = (float)x / width * cycles * 2.0 * M_PI;
-        float y = height / 2.0 - sin(t + params.phase * 2.0 * M_PI) * amplitude_scale;
+        float y;
+        if (params.waveform_type == 1) {
+            // Square wave
+            y = height / 2.0 - ((sin(t + params.phase * 2.0 * M_PI) >= 0) ? 1.0 : -1.0) * amplitude_scale;
+        } else {
+            // Sine wave
+            y = height / 2.0 - sin(t + params.phase * 2.0 * M_PI) * amplitude_scale;
+        }
         cairo_line_to(cr, x, y);
     }
     
@@ -625,13 +684,25 @@ int main(int argc, char* argv[]) {
     // Store frequency slider reference for sweep updates
     params.freq_slider = freq_slider;
     
-    // Play/Mute button
-    GtkWidget* play_mute_button = gtk_button_new_with_label("Play");
-    g_signal_connect(play_mute_button, "clicked", G_CALLBACK(on_play_mute_clicked), nullptr);
-    gtk_box_pack_start(GTK_BOX(vbox), play_mute_button, FALSE, FALSE, 0);
+    // Waveform selection buttons
+    GtkWidget* waveform_button_box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 5);
+    gtk_box_pack_start(GTK_BOX(vbox), waveform_button_box, FALSE, FALSE, 0);
     
-    // Store button reference
-    params.play_mute_button = play_mute_button;
+    GtkWidget* sine_button = gtk_button_new_with_label("Play Sine Wave");
+    g_signal_connect(sine_button, "clicked", G_CALLBACK(on_sine_button_clicked), nullptr);
+    gtk_box_pack_start(GTK_BOX(waveform_button_box), sine_button, TRUE, TRUE, 0);
+    
+    GtkWidget* square_button = gtk_button_new_with_label("Play Square Wave");
+    g_signal_connect(square_button, "clicked", G_CALLBACK(on_square_button_clicked), nullptr);
+    gtk_box_pack_start(GTK_BOX(waveform_button_box), square_button, TRUE, TRUE, 0);
+    
+    // Store button references
+    params.sine_button = sine_button;
+    params.square_button = square_button;
+    
+    // Initialize button states (app starts muted, so both show "Play")
+    gtk_widget_set_sensitive(GTK_WIDGET(sine_button), TRUE);
+    gtk_widget_set_sensitive(GTK_WIDGET(square_button), TRUE);
     
     // Separator
     GtkWidget* separator = gtk_separator_new(GTK_ORIENTATION_HORIZONTAL);
