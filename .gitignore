@@ -1,0 +1,49 @@
+# Compiled binary
+simpleSineWaveGenerator
+
+# Icon and desktop files (these are installed by package)
+# simplesinewavegenerator.svg
+# simplesinewavegenerator.desktop
+
+# Generated WAV files
+*.wav
+
+# Build artifacts
+*.o
+*.obj
+*.slo
+*.lo
+
+# Precompiled headers
+*.gch
+*.pch
+
+# Shared libraries
+*.so
+*.dylib
+*.dll
+
+# Static libraries
+*.a
+*.lib
+*.lai
+*.la
+
+# Package build artifacts
+pkg/
+src/
+*.tar.gz
+*.tar.xz
+*.pkg.tar.*
+
+# Editor files
+*~
+*.swp
+*.swo
+.vscode/
+.idea/
+*.code-workspace
+
+# OS files
+.DS_Store
+Thumbs.db
