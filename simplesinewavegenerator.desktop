@@ -1,0 +1,11 @@
+[Desktop Entry]
+Name=Simple Sine Wave Generator
+GenericName=Audio Generator
+Comment=Generate sine waves with GTK3 GUI and logarithmic frequency sweep
+Exec=simpleSineWaveGenerator
+Icon=simplesinewavegenerator
+Terminal=false
+Type=Application
+Categories=Audio;AudioVideo;Development;
+StartupNotify=true
+X-Purism-FormFactor=Workstation;Mobile;
